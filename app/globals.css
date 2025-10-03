@@ -44,8 +44,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Set default site background to white and dark foreground for readability */
+  --background: #ffffff; /* white page background */
+  --foreground: #111827; /* dark gray / almost black for text (tailwind-900) */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -117,5 +118,20 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom gradient utilities */
+@layer utilities {
+  .bg-app-beige {
+    background-color: #f5f5dc;
+  }
+
+  .gradient-blue-vertical {
+    background-image: linear-gradient(to bottom, #1d4ed8, #2563eb, #60a5fa);
+  }
+
+  .gradient-blue-horizontal {
+    background-image: linear-gradient(to right, #1d4ed8, #2563eb, #60a5fa);
   }
 }
