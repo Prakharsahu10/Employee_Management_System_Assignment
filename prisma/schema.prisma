@@ -1,19 +1,296 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================
-// ENUMS
-// ============================================
+model User {
+  id                  String         @id @default(cuid())
+  email               String         @unique
+  username            String         @unique
+  password            String
+  role                Role           @default(EMPLOYEE)
+  isActive            Boolean        @default(true)
+  lastLogin           DateTime?
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
+  twoFactorEnabled    Boolean        @default(false)
+  twoFactorSecret     String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  employee            Employee?
+  notifications       Notification[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Employee {
+  id                       String              @id @default(cuid())
+  userId                   String              @unique
+  employeeCode             String              @unique
+  firstName                String
+  middleName               String?
+  lastName                 String
+  dateOfBirth              DateTime
+  gender                   String
+  phone                    String
+  alternatePhone           String?
+  personalEmail            String?
+  address                  String
+  city                     String
+  state                    String
+  country                  String              @default("India")
+  postalCode               String
+  emergencyContactName     String
+  emergencyContactPhone    String
+  emergencyContactRelation String
+  position                 String
+  departmentId             String
+  managerId                String?
+  joiningDate              DateTime
+  confirmationDate         DateTime?
+  employmentStatus         EmploymentStatus    @default(ACTIVE)
+  employmentType           String
+  probationPeriod          Int?
+  noticePeriod             Int?
+  salary                   Decimal?
+  bankName                 String?
+  bankAccountNumber        String?
+  bankIFSC                 String?
+  panNumber                String?
+  aadharNumber             String?
+  sickLeaveBalance         Int                 @default(12)
+  casualLeaveBalance       Int                 @default(10)
+  annualLeaveBalance       Int                 @default(20)
+  notificationsEnabled     Boolean             @default(true)
+  profilePicture           String?
+  bio                      String?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  attendances              Attendance[]
+  documents                Document[]
+  department               Department          @relation(fields: [departmentId], references: [id])
+  manager                  Employee?           @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates             Employee[]          @relation("ManagerSubordinates")
+  user                     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaves                   Leave[]
+  performanceReviews       PerformanceReview[]
+  assignedTasks            Task[]              @relation("AssignedTasks")
+  createdTasks             Task[]              @relation("CreatedTasks")
+
+  @@index([userId])
+  @@index([employeeCode])
+  @@index([departmentId])
+  @@index([managerId])
+  @@map("employees")
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  code        String     @unique
+  description String?
+  headId      String?
+  location    String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+
+  @@index([code])
+  @@map("departments")
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  employeeId  String
+  date        DateTime         @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      AttendanceStatus
+  workHours   Decimal?
+  notes       String?
+  isLate      Boolean          @default(false)
+  lateMinutes Int?
+  location    String?
+  ipAddress   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+  @@map("attendances")
+}
+
+model Leave {
+  id              String      @id @default(cuid())
+  employeeId      String
+  leaveType       LeaveType
+  startDate       DateTime    @db.Date
+  endDate         DateTime    @db.Date
+  totalDays       Int
+  reason          String
+  status          LeaveStatus @default(PENDING)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  appliedAt       DateTime    @default(now())
+  documents       String[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+  @@map("leaves")
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  assignedToId   String
+  createdById    String
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  dueDate        DateTime?
+  startDate      DateTime?
+  completedAt    DateTime?
+  tags           String[]
+  attachments    String[]
+  estimatedHours Decimal?
+  actualHours    Decimal?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assignedTo     Employee     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  createdBy      Employee     @relation("CreatedTasks", fields: [createdById], references: [id])
+
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  employeeId   String
+  documentType DocumentType
+  title        String
+  description  String?
+  fileUrl      String
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  uploadedAt   DateTime     @default(now())
+  expiryDate   DateTime?
+  isVerified   Boolean      @default(false)
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([documentType])
+  @@map("documents")
+}
+
+model Announcement {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  priority    TaskPriority @default(MEDIUM)
+  isPublished Boolean      @default(false)
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  targetRoles Role[]
+  attachments String[]
+  createdBy   String
+  views       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([isPublished])
+  @@index([publishedAt])
+  @@map("announcements")
+}
+
+model PerformanceReview {
+  id                 String   @id @default(cuid())
+  employeeId         String
+  reviewerId         String
+  reviewPeriodStart  DateTime @db.Date
+  reviewPeriodEnd    DateTime @db.Date
+  overallRating      Decimal
+  strengths          String
+  areasOfImprovement String
+  goals              String
+  comments           String?
+  technicalSkills    Decimal?
+  communication      Decimal?
+  teamwork           Decimal?
+  leadership         Decimal?
+  punctuality        Decimal?
+  reviewDate         DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([reviewDate])
+  @@map("performance_reviews")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  name        String
+  date        DateTime @db.Date
+  description String?
+  isOptional  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@map("holidays")
+}
+
+model SystemSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
 
 enum Role {
   EMPLOYEE
@@ -77,312 +354,4 @@ enum DocumentType {
   OFFER_LETTER
   RESUME
   OTHER
-}
-
-// ============================================
-// MODELS
-// ============================================
-
-model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  username          String    @unique
-  password          String
-  role              Role      @default(EMPLOYEE)
-  isActive          Boolean   @default(true)
-  lastLogin         DateTime?
-  passwordResetToken String?
-  passwordResetExpiry DateTime?
-  twoFactorEnabled  Boolean   @default(false)
-  twoFactorSecret   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  employee          Employee?
-  notifications     Notification[]
-
-  @@index([email])
-  @@index([username])
-  @@map("users")
-}
-
-model Employee {
-  id                String           @id @default(cuid())
-  userId            String           @unique
-  employeeCode      String           @unique
-  firstName         String
-  middleName        String?
-  lastName          String
-  dateOfBirth       DateTime
-  gender            String
-  phone             String
-  alternatePhone    String?
-  personalEmail     String?
-  address           String
-  city              String
-  state             String
-  country           String           @default("India")
-  postalCode        String
-  emergencyContactName String
-  emergencyContactPhone String
-  emergencyContactRelation String
-  
-  // Employment Details
-  position          String
-  departmentId      String
-  managerId         String?
-  joiningDate       DateTime
-  confirmationDate  DateTime?
-  employmentStatus  EmploymentStatus @default(ACTIVE)
-  employmentType    String           // Full-time, Part-time, Contract, Intern
-  probationPeriod   Int?             // In months
-  noticePeriod      Int?             // In days
-  
-  // Compensation
-  salary            Decimal?
-  bankName          String?
-  bankAccountNumber String?
-  bankIFSC          String?
-  panNumber         String?
-  aadharNumber      String?
-  
-  // Leave Balance
-  sickLeaveBalance    Int @default(12)
-  casualLeaveBalance  Int @default(10)
-  annualLeaveBalance  Int @default(20)
-  
-  // Settings
-  notificationsEnabled Boolean @default(true)
-  profilePicture    String?
-  bio               String?
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Relations
-  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department        Department   @relation(fields: [departmentId], references: [id])
-  manager           Employee?    @relation("ManagerSubordinates", fields: [managerId], references: [id])
-  subordinates      Employee[]   @relation("ManagerSubordinates")
-  
-  attendances       Attendance[]
-  leaves            Leave[]
-  assignedTasks     Task[]       @relation("AssignedTasks")
-  createdTasks      Task[]       @relation("CreatedTasks")
-  documents         Document[]
-  performanceReviews PerformanceReview[]
-
-  @@index([userId])
-  @@index([employeeCode])
-  @@index([departmentId])
-  @@index([managerId])
-  @@map("employees")
-}
-
-model Department {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  code        String     @unique
-  description String?
-  headId      String?
-  location    String?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  employees   Employee[]
-
-  @@index([code])
-  @@map("departments")
-}
-
-model Attendance {
-  id          String           @id @default(cuid())
-  employeeId  String
-  date        DateTime         @db.Date
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      AttendanceStatus
-  workHours   Decimal?         // Calculated in hours
-  notes       String?
-  isLate      Boolean          @default(false)
-  lateMinutes Int?             // Minutes late
-  location    String?          // For remote work tracking
-  ipAddress   String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-  @@index([date])
-  @@index([status])
-  @@map("attendances")
-}
-
-model Leave {
-  id           String      @id @default(cuid())
-  employeeId   String
-  leaveType    LeaveType
-  startDate    DateTime    @db.Date
-  endDate      DateTime    @db.Date
-  totalDays    Int
-  reason       String
-  status       LeaveStatus @default(PENDING)
-  approvedBy   String?
-  approvedAt   DateTime?
-  rejectionReason String?
-  appliedAt    DateTime    @default(now())
-  documents    String[]    // Array of file URLs for medical certificates, etc.
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-  @@index([status])
-  @@index([startDate])
-  @@map("leaves")
-}
-
-model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  assignedToId String
-  createdById String
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
-  dueDate     DateTime?
-  startDate   DateTime?
-  completedAt DateTime?
-  tags        String[]
-  attachments String[]     // Array of file URLs
-  estimatedHours Decimal?
-  actualHours Decimal?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  assignedTo  Employee     @relation("AssignedTasks", fields: [assignedToId], references: [id])
-  createdBy   Employee     @relation("CreatedTasks", fields: [createdById], references: [id])
-
-  @@index([assignedToId])
-  @@index([createdById])
-  @@index([status])
-  @@index([dueDate])
-  @@map("tasks")
-}
-
-model Document {
-  id          String       @id @default(cuid())
-  employeeId  String
-  documentType DocumentType
-  title       String
-  description String?
-  fileUrl     String
-  fileName    String
-  fileSize    Int          // in bytes
-  mimeType    String
-  uploadedAt  DateTime     @default(now())
-  expiryDate  DateTime?    // For documents that expire
-  isVerified  Boolean      @default(false)
-  verifiedBy  String?
-  verifiedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-  @@index([documentType])
-  @@map("documents")
-}
-
-model Announcement {
-  id          String    @id @default(cuid())
-  title       String
-  content     String
-  priority    TaskPriority @default(MEDIUM)
-  isPublished Boolean   @default(false)
-  publishedAt DateTime?
-  expiresAt   DateTime?
-  targetRoles Role[]    // Empty array means all roles
-  attachments String[]  // Array of file URLs
-  createdBy   String
-  views       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([isPublished])
-  @@index([publishedAt])
-  @@map("announcements")
-}
-
-model PerformanceReview {
-  id              String   @id @default(cuid())
-  employeeId      String
-  reviewerId      String
-  reviewPeriodStart DateTime @db.Date
-  reviewPeriodEnd DateTime @db.Date
-  overallRating   Decimal  // Out of 5
-  strengths       String
-  areasOfImprovement String
-  goals           String
-  comments        String?
-  technicalSkills Decimal? // Out of 5
-  communication   Decimal? // Out of 5
-  teamwork        Decimal? // Out of 5
-  leadership      Decimal? // Out of 5
-  punctuality     Decimal? // Out of 5
-  reviewDate      DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-  @@index([reviewDate])
-  @@map("performance_reviews")
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  message     String
-  type        String   // info, success, warning, error
-  isRead      Boolean  @default(false)
-  link        String?
-  createdAt   DateTime @default(now())
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-  @@index([createdAt])
-  @@map("notifications")
-}
-
-model Holiday {
-  id          String   @id @default(cuid())
-  name        String
-  date        DateTime @db.Date
-  description String?
-  isOptional  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([date])
-  @@map("holidays")
-}
-
-model SystemSettings {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  value       String
-  description String?
-  updatedAt   DateTime @updatedAt
-
-  @@map("system_settings")
 }

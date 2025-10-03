@@ -1,6 +1,11 @@
-import prisma from '@/lib/prisma'
-import { AttendanceStatus, LeaveStatus, EmploymentStatus } from '@prisma/client'
-import { startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns'
+import prisma from "@/lib/prisma";
+import {
+  AttendanceStatus,
+  LeaveStatus,
+  EmploymentStatus,
+  Role,
+} from "@prisma/client";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 
 /**
  * Employee Queries
@@ -26,7 +31,7 @@ export async function getEmployeeById(id: string) {
         },
       },
     },
-  })
+  });
 }
 
 export async function getEmployeeByUserId(userId: string) {
@@ -37,7 +42,7 @@ export async function getEmployeeByUserId(userId: string) {
       department: true,
       manager: true,
     },
-  })
+  });
 }
 
 export async function getAllActiveEmployees() {
@@ -55,9 +60,9 @@ export async function getAllActiveEmployees() {
       },
     },
     orderBy: {
-      firstName: 'asc',
+      firstName: "asc",
     },
-  })
+  });
 }
 
 export async function getEmployeesByDepartment(departmentId: string) {
@@ -74,7 +79,7 @@ export async function getEmployeesByDepartment(departmentId: string) {
         },
       },
     },
-  })
+  });
 }
 
 export async function getSubordinates(managerId: string) {
@@ -86,14 +91,14 @@ export async function getSubordinates(managerId: string) {
     include: {
       department: true,
     },
-  })
+  });
 }
 
 /**
  * Attendance Queries
  */
 export async function getTodayAttendance(employeeId: string) {
-  const today = new Date()
+  const today = new Date();
   return prisma.attendance.findUnique({
     where: {
       employeeId_date: {
@@ -101,7 +106,7 @@ export async function getTodayAttendance(employeeId: string) {
         date: startOfDay(today),
       },
     },
-  })
+  });
 }
 
 export async function getAttendanceByDateRange(
@@ -118,9 +123,9 @@ export async function getAttendanceByDateRange(
       },
     },
     orderBy: {
-      date: 'desc',
+      date: "desc",
     },
-  })
+  });
 }
 
 export async function getMonthlyAttendance(employeeId: string, date: Date) {
@@ -133,26 +138,26 @@ export async function getMonthlyAttendance(employeeId: string, date: Date) {
       },
     },
     orderBy: {
-      date: 'asc',
+      date: "asc",
     },
-  })
+  });
 }
 
 export async function getTodayAttendanceSummary() {
-  const today = startOfDay(new Date())
-  
+  const today = startOfDay(new Date());
+
   const summary = await prisma.attendance.groupBy({
-    by: ['status'],
+    by: ["status"],
     where: {
       date: today,
     },
     _count: true,
-  })
+  });
 
   return summary.reduce((acc, curr) => {
-    acc[curr.status] = curr._count
-    return acc
-  }, {} as Record<AttendanceStatus, number>)
+    acc[curr.status] = curr._count;
+    return acc;
+  }, {} as Record<AttendanceStatus, number>);
 }
 
 /**
@@ -166,9 +171,9 @@ export async function getLeaveBalance(employeeId: string) {
       casualLeaveBalance: true,
       annualLeaveBalance: true,
     },
-  })
+  });
 
-  return employee
+  return employee;
 }
 
 export async function getPendingLeaves(managerId?: string) {
@@ -181,7 +186,7 @@ export async function getPendingLeaves(managerId?: string) {
       }
     : {
         status: LeaveStatus.PENDING,
-      }
+      };
 
   return prisma.leave.findMany({
     where,
@@ -196,9 +201,9 @@ export async function getPendingLeaves(managerId?: string) {
       },
     },
     orderBy: {
-      appliedAt: 'desc',
+      appliedAt: "desc",
     },
-  })
+  });
 }
 
 export async function getEmployeeLeaves(employeeId: string, limit = 10) {
@@ -207,10 +212,10 @@ export async function getEmployeeLeaves(employeeId: string, limit = 10) {
       employeeId,
     },
     orderBy: {
-      startDate: 'desc',
+      startDate: "desc",
     },
     take: limit,
-  })
+  });
 }
 
 /**
@@ -229,12 +234,8 @@ export async function getEmployeeTasks(employeeId: string) {
         },
       },
     },
-    orderBy: [
-      { status: 'asc' },
-      { priority: 'desc' },
-      { dueDate: 'asc' },
-    ],
-  })
+    orderBy: [{ status: "asc" }, { priority: "desc" }, { dueDate: "asc" }],
+  });
 }
 
 export async function getPendingTasks(employeeId: string) {
@@ -242,14 +243,19 @@ export async function getPendingTasks(employeeId: string) {
     where: {
       assignedToId: employeeId,
       status: {
-        in: ['TODO', 'IN_PROGRESS'],
+        in: ["TODO", "IN_PROGRESS"],
       },
     },
-    orderBy: [
-      { priority: 'desc' },
-      { dueDate: 'asc' },
-    ],
-  })
+    include: {
+      createdBy: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
+  });
 }
 
 /**
@@ -261,9 +267,9 @@ export async function getEmployeeDocuments(employeeId: string) {
       employeeId,
     },
     orderBy: {
-      uploadedAt: 'desc',
+      uploadedAt: "desc",
     },
-  })
+  });
 }
 
 export async function getUnverifiedDocuments() {
@@ -281,39 +287,33 @@ export async function getUnverifiedDocuments() {
       },
     },
     orderBy: {
-      uploadedAt: 'asc',
+      uploadedAt: "asc",
     },
-  })
+  });
 }
 
 /**
  * Announcement Queries
  */
 export async function getActiveAnnouncements(userRole?: string) {
-  const now = new Date()
-  
+  const now = new Date();
+
   return prisma.announcement.findMany({
     where: {
       isPublished: true,
       publishedAt: {
         lte: now,
       },
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gte: now } },
-      ],
+      OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
       ...(userRole && {
         OR: [
           { targetRoles: { isEmpty: true } },
-          { targetRoles: { has: userRole } },
+          { targetRoles: { has: userRole as Role } },
         ],
       }),
     },
-    orderBy: [
-      { priority: 'desc' },
-      { publishedAt: 'desc' },
-    ],
-  })
+    orderBy: [{ priority: "desc" }, { publishedAt: "desc" }],
+  });
 }
 
 /**
@@ -326,58 +326,56 @@ export async function getUnreadNotifications(userId: string) {
       isRead: false,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
-  })
+  });
 }
 
 export async function markNotificationAsRead(notificationId: string) {
   return prisma.notification.update({
     where: { id: notificationId },
     data: { isRead: true },
-  })
+  });
 }
 
 /**
  * Dashboard Statistics
  */
 export async function getDashboardStats() {
-  const today = startOfDay(new Date())
+  const today = startOfDay(new Date());
 
-  const [
-    totalEmployees,
-    activeEmployees,
-    todayAttendance,
-    pendingLeaves,
-  ] = await Promise.all([
-    prisma.employee.count(),
-    prisma.employee.count({
-      where: {
-        employmentStatus: EmploymentStatus.ACTIVE,
-      },
-    }),
-    prisma.attendance.findMany({
-      where: {
-        date: today,
-      },
-      select: {
-        status: true,
-      },
-    }),
-    prisma.leave.count({
-      where: {
-        status: LeaveStatus.PENDING,
-      },
-    }),
-  ])
+  const [totalEmployees, activeEmployees, todayAttendance, pendingLeaves] =
+    await Promise.all([
+      prisma.employee.count(),
+      prisma.employee.count({
+        where: {
+          employmentStatus: EmploymentStatus.ACTIVE,
+        },
+      }),
+      prisma.attendance.findMany({
+        where: {
+          date: today,
+        },
+        select: {
+          status: true,
+        },
+      }),
+      prisma.leave.count({
+        where: {
+          status: LeaveStatus.PENDING,
+        },
+      }),
+    ]);
 
   const presentToday = todayAttendance.filter(
-    (a) => a.status === AttendanceStatus.PRESENT || a.status === AttendanceStatus.LATE
-  ).length
+    (a) =>
+      a.status === AttendanceStatus.PRESENT ||
+      a.status === AttendanceStatus.LATE
+  ).length;
 
   const absentToday = todayAttendance.filter(
     (a) => a.status === AttendanceStatus.ABSENT
-  ).length
+  ).length;
 
   return {
     totalEmployees,
@@ -385,7 +383,7 @@ export async function getDashboardStats() {
     todayPresent: presentToday,
     todayAbsent: absentToday,
     pendingLeaves,
-  }
+  };
 }
 
 /**
@@ -404,17 +402,17 @@ export async function getAllDepartments() {
       },
     },
     orderBy: {
-      name: 'asc',
+      name: "asc",
     },
-  })
+  });
 }
 
 /**
  * Holiday Queries
  */
 export async function getUpcomingHolidays(limit = 5) {
-  const today = new Date()
-  
+  const today = new Date();
+
   return prisma.holiday.findMany({
     where: {
       date: {
@@ -422,8 +420,8 @@ export async function getUpcomingHolidays(limit = 5) {
       },
     },
     orderBy: {
-      date: 'asc',
+      date: "asc",
     },
     take: limit,
-  })
+  });
 }
